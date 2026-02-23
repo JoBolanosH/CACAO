@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  # Backend - Microservicio de Autenticación
+  auth-service:
+    build:
+      context: ./backend/auth-service
+      dockerfile: Dockerfile
+    container_name: cacao-auth-service
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
+      - JAVA_TOOL_OPTIONS=-Xmx512m -Xms256m
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/actuator/health" ]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    networks:
+      - cacao-network
+    volumes:
+      - auth-service-logs:/app/logs
+
+  # Frontend - React + Vite + TypeScript
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cacao-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://auth-service:8080
+    depends_on:
+      auth-service:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5173/" ]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    networks:
+      - cacao-network
+    volumes:
+      - frontend-logs:/app/logs
+
+networks:
+  cacao-network:
+    driver: bridge
+
+volumes:
+  auth-service-logs:
+  frontend-logs:
